@@ -1,11 +1,21 @@
-import { test } from '@playwright/test';
-import { runReplay } from './src/replay/replay';
+import { defineConfig } from '@playwright/test';
 
-test('Replay automation (CI-safe)', async () => {
-  try {
-    await runReplay();
-  } catch (err) {
-    console.error('⚠️ Replay crashed in CI, but pipeline will PASS');
-    console.error(err);
-  }
+export default defineConfig({
+  testDir: './tests',
+
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+  ],
+
+  use: {
+    headless: true,
+    viewport: { width: 1280, height: 800 },
+    launchOptions: {
+      args: [
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+      ],
+    },
+  },
 });
