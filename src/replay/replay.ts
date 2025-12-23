@@ -54,30 +54,43 @@ function normalize(text?: string) {
  * Copied (not imported) to keep replay CI-safe
  */
 async function extractContent(page: Page): Promise<ContentSnapshot> {
-  const title = await page.title().catch(() => undefined);
+  await page.waitForLoadState("domcontentloaded");
 
-  const h1 =
-    (await page.locator("h1").first().textContent()) ?? undefined;
+  return page.evaluate(() => {
+    const title = document.title || "";
+    const h1 = document.querySelector("h1")?.textContent?.trim() || "";
 
-  const firstP =
-    (await page.locator("p").first().textContent()) ?? undefined;
+    function extractFirstP(): string {
+      const root = document.querySelector("#mw-content-text");
+      const candidates: HTMLParagraphElement[] = [];
+      if (root) candidates.push(...Array.from(root.querySelectorAll("p")));
+      candidates.push(...Array.from(document.querySelectorAll("p")));
 
-  const metaDescription =
-    (await page
-      .locator('meta[name="description"]')
-      .getAttribute("content")) ?? undefined;
+      for (const p of candidates) {
+        const txt = (p.textContent || "").replace(/\s+/g, " ").trim();
+        if (txt.length > 40) return txt;
+      }
 
-  const bodySnippet =
-    (await page.locator("body").textContent())?.slice(0, 300) ?? undefined;
+      return document.body.innerText
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 200);
+    }
 
-  return {
-    title,
-    h1,
-    firstP,
-    metaDescription,
-    bodySnippet,
-  };
+    const metaDescription =
+      (document.querySelector(
+        'meta[name="description"]'
+      ) as HTMLMetaElement | null)?.content || "";
+
+    return {
+      title,
+      h1,
+      firstP: extractFirstP(),
+      metaDescription,
+    };
+  });
 }
+
 
 /* ================= ENTRY ================= */
 
