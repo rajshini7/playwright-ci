@@ -1,0 +1,38 @@
+import { Page } from "playwright";
+import { ENV } from "../config/env";
+import { LOGIN_SELECTORS } from "../config/selector";
+
+export function assertEnv() {
+  const missing: string[] = [];
+
+  if (!ENV.baseUrl) missing.push("BASE_URL");
+  if (!ENV.username) missing.push("USERNAME");
+  if (!ENV.password) missing.push("PASSWORD");
+
+  if (missing.length) {
+    throw new Error(`Missing env vars: ${missing.join(", ")}`);
+  }
+}
+
+export async function performLogin(page: Page) {
+  console.log("🌐 Navigating to login page...");
+  await page.goto(ENV.baseUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+
+  console.log("✍️ Filling credentials...");
+  await page.fill(LOGIN_SELECTORS.usernameInput, ENV.username);
+  await page.fill(LOGIN_SELECTORS.passwordInput, ENV.password);
+
+  console.log("🔐 Submitting login form...");
+  await Promise.all([
+    page.click(LOGIN_SELECTORS.submitButton),
+    page.waitForLoadState("networkidle"),
+  ]);
+
+  console.log("🔎 Verifying login success...");
+  await page.waitForSelector(ENV.loginSuccessSelector, { timeout: 15_000 });
+
+  console.log("✅ Login successful");
+}
