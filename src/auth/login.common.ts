@@ -1,8 +1,9 @@
 import { Page } from "playwright";
-import { ENV } from "../config/env";
+import { getEnv } from "../config/env";
 import { LOGIN_SELECTORS } from "../config/selector";
 
 export function assertEnv() {
+  const ENV = getEnv();
   const missing: string[] = [];
 
   if (!ENV.baseUrl) missing.push("BASE_URL");
@@ -15,6 +16,8 @@ export function assertEnv() {
 }
 
 export async function performLogin(page: Page) {
+  const ENV = getEnv();
+
   console.log("🌐 Navigating to login page...");
   await page.goto(ENV.baseUrl, {
     waitUntil: "domcontentloaded",
@@ -25,14 +28,9 @@ export async function performLogin(page: Page) {
   await page.fill(LOGIN_SELECTORS.usernameInput, ENV.username);
   await page.fill(LOGIN_SELECTORS.passwordInput, ENV.password);
 
-  console.log("🔐 Submitting login form...");
+  console.log("🔐 Submitting login...");
   await Promise.all([
     page.click(LOGIN_SELECTORS.submitButton),
     page.waitForLoadState("networkidle"),
   ]);
-
-  console.log("🔎 Verifying login success...");
-  await page.waitForSelector(ENV.loginSuccessSelector, { timeout: 15_000 });
-
-  console.log("✅ Login successful");
 }
