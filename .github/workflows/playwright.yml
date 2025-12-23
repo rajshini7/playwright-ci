@@ -39,7 +39,13 @@ jobs:
       - name: Run replay automation
         run: npx playwright test tests/replay.spec.ts
         env:
+<<<<<<< HEAD
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
           BASE_URL: ${{ secrets.BASE_URL }}
+=======
+           USERNAME: ${{ secrets.USERNAME }}
+           PASSWORD: ${{ secrets.PASSWORD }}
+           BASE_URL: ${{ secrets.BASE_URL }}
+>>>>>>> 77f892a3854f65befa3cdb44adbd99451ae7e0b5
 

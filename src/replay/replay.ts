@@ -48,21 +48,14 @@ function normalize(s?: string) {
   return (s || "").replace(/\s+/g, " ").trim();
 }
 
-/* ================= MAIN ================= */
+/* ================= EXPORTED ENTRY ================= */
 
-(async function main() {
-  let steps: Step[] = [];
-
-  try {
-    steps = loadSteps();
-  } catch (err) {
-    console.error("Cannot load recorded steps:", err);
-    process.exit(1);
-  }
+export async function runReplay(): Promise<void> {
+  let steps: Step[] = loadSteps();
 
   if (!steps.length) {
     console.log("No recorded steps found.");
-    process.exit(0);
+    return;
   }
 
   const results: StepResult[] = [];
@@ -108,6 +101,7 @@ function normalize(s?: string) {
     }
   } catch (err) {
     console.error("Replay crashed:", err);
+    throw err; // 🔑 CI MUST FAIL
   } finally {
     if (page) await page.context().browser()?.close();
   }
@@ -149,10 +143,7 @@ function normalize(s?: string) {
 
       ${
         !r.pass && r.screenshotPath
-          ? `
-        <h3>Failure Screenshot</h3>
-        <img src="file://${r.screenshotPath.replace(/\\/g, "/")}" />
-      `
+          ? `<img src="file://${r.screenshotPath.replace(/\\/g, "/")}" />`
           : ""
       }
     </div>
@@ -166,4 +157,10 @@ function normalize(s?: string) {
 
   fs.writeFileSync(REPORT_FILE, reportHtml);
   console.log("\n✅ Replay finished. Report saved at:", REPORT_FILE);
-})();
+
+  // 🔑 Fail CI if any step failed
+  const failed = results.find(r => !r.pass);
+  if (failed) {
+    throw new Error("Replay verification failed");
+  }
+}
