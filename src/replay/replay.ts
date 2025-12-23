@@ -1,8 +1,8 @@
 import { Page } from "playwright";
 import fs from "fs";
 import path from "path";
-import { login } from "../auth/login";
-import { extractContent } from "../record/recorder";
+
+import { loginForReplay } from "../auth/login.replay";
 import { captureFailureScreenshot } from "./artifacts/screenshot";
 
 /* ================= TYPES ================= */
@@ -31,30 +31,61 @@ type StepResult = Step & {
 
 /* ================= PATHS ================= */
 
-const OUT_DIR = path.join(process.cwd(), "baseline");
-const OUT_FILE = path.join(OUT_DIR, "steps.json");
+const BASELINE_DIR = path.join(process.cwd(), "baseline");
+const STEPS_FILE = path.join(BASELINE_DIR, "steps.json");
 const REPORT_FILE = path.join(process.cwd(), "replay-report.html");
 
 /* ================= HELPERS ================= */
 
 function loadSteps(): Step[] {
-  if (!fs.existsSync(OUT_FILE)) {
-    throw new Error(`${OUT_FILE} not found. Run recorder first.`);
+  if (!fs.existsSync(STEPS_FILE)) {
+    throw new Error(`${STEPS_FILE} not found. Run recorder first.`);
   }
-  return JSON.parse(fs.readFileSync(OUT_FILE, "utf-8")) as Step[];
+  return JSON.parse(fs.readFileSync(STEPS_FILE, "utf-8")) as Step[];
 }
 
-function normalize(s?: string) {
-  return (s || "").replace(/\s+/g, " ").trim();
+function normalize(text?: string) {
+  return (text || "").replace(/\s+/g, " ").trim();
 }
 
-/* ================= EXPORTED ENTRY ================= */
+/* ================= CONTENT EXTRACTION ================= */
+/**
+ * Same logic as recorder.ts
+ * Copied (not imported) to keep replay CI-safe
+ */
+async function extractContent(page: Page): Promise<ContentSnapshot> {
+  const title = await page.title().catch(() => undefined);
+
+  const h1 =
+    (await page.locator("h1").first().textContent()) ?? undefined;
+
+  const firstP =
+    (await page.locator("p").first().textContent()) ?? undefined;
+
+  const metaDescription =
+    (await page
+      .locator('meta[name="description"]')
+      .getAttribute("content")) ?? undefined;
+
+  const bodySnippet =
+    (await page.locator("body").textContent())?.slice(0, 300) ?? undefined;
+
+  return {
+    title,
+    h1,
+    firstP,
+    metaDescription,
+    bodySnippet,
+  };
+}
+
+/* ================= ENTRY ================= */
 
 export async function runReplay(): Promise<void> {
-  let steps: Step[] = loadSteps();
+  const steps = loadSteps();
 
   if (!steps.length) {
-    console.log("No recorded steps found.");
+    console.log("⚠️ No recorded steps found. Skipping replay.");
     return;
   }
 
@@ -62,8 +93,8 @@ export async function runReplay(): Promise<void> {
   let page: Page | null = null;
 
   try {
-    console.log("🔑 Starting login for replay...");
-    page = await login();
+    console.log("🔑 Starting headless login for replay...");
+    page = await loginForReplay();
     console.log("✅ Login successful. Starting replay...");
 
     for (let i = 0; i < steps.length; i++) {
@@ -73,7 +104,7 @@ export async function runReplay(): Promise<void> {
 
       await page.goto(step.target_href, {
         waitUntil: "domcontentloaded",
-        timeout: 30000,
+        timeout: 60_000,
       });
 
       await page.waitForTimeout(1000);
@@ -100,10 +131,12 @@ export async function runReplay(): Promise<void> {
       await page.waitForTimeout(500);
     }
   } catch (err) {
-    console.error("Replay crashed:", err);
-    throw err; // 🔑 CI MUST FAIL
+    console.error("❌ Replay crashed:", err);
+    throw err; // CI must fail on crash
   } finally {
-    if (page) await page.context().browser()?.close();
+    if (page) {
+      await page.context().browser()?.close();
+    }
   }
 
   /* ================= REPORT ================= */
@@ -156,11 +189,14 @@ export async function runReplay(): Promise<void> {
 `;
 
   fs.writeFileSync(REPORT_FILE, reportHtml);
-  console.log("\n✅ Replay finished. Report saved at:", REPORT_FILE);
+  console.log(`\n📄 Replay report generated → ${REPORT_FILE}`);
 
-  // 🔑 Fail CI if any step failed
+  /* ================= CI VERDICT ================= */
+
   const failed = results.find(r => !r.pass);
   if (failed) {
-    throw new Error("Replay verification failed");
+    throw new Error("❌ Replay verification failed");
   }
+
+  console.log("✅ Replay verification passed");
 }
