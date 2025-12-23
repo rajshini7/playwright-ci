@@ -2,7 +2,7 @@ import { Page } from "playwright";
 import fs from "fs";
 import path from "path";
 
-import { loginForReplay } from "../auth/login.replay";
+import { loginForReplay } from "../auth/loginreplay";
 import { captureFailureScreenshot } from "./artifacts/screenshot";
 
 /* ================= TYPES ================= */
