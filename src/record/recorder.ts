@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import { Page } from "playwright";
 
+import { loginForRecord } from "../auth/login.record";
+
 /* ================= TYPES ================= */
 
 type ContentSnapshot = {
@@ -36,7 +38,9 @@ function saveSteps(steps: Step[]) {
 }
 
 /* ================= CONTENT EXTRACTION ================= */
-
+/**
+ * ⬇️ UNCHANGED — your original DOM-based extraction logic
+ */
 export async function extractContent(page: Page): Promise<ContentSnapshot> {
   await page.waitForLoadState("domcontentloaded");
 
@@ -55,7 +59,10 @@ export async function extractContent(page: Page): Promise<ContentSnapshot> {
         if (txt.length > 40) return txt;
       }
 
-      return document.body.innerText.replace(/\s+/g, " ").trim().slice(0, 200);
+      return document.body.innerText
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 200);
     }
 
     const metaDescription =
@@ -66,9 +73,17 @@ export async function extractContent(page: Page): Promise<ContentSnapshot> {
   });
 }
 
-/* ================= RECORDER ================= */
+/* ================= RECORDER ENTRY ================= */
 
-export async function startRecorder(page: Page) {
+export async function startRecorder() {
+  if (process.env.CI) {
+    throw new Error("❌ Recorder must never run in CI");
+  }
+
+  console.log("🎥 Starting recorder (headed login)");
+
+  const page = await loginForRecord(); // 🔑 NEW: recorder-specific login
+
   const steps: Step[] = [];
   let shuttingDown = false;
 
@@ -76,7 +91,7 @@ export async function startRecorder(page: Page) {
     if (shuttingDown) return;
     shuttingDown = true;
 
-    console.log("\n🛑 Browser closed. Saving steps to steps.json...");
+    console.log("\n🛑 Browser closed. Saving steps...");
     saveSteps(steps);
     console.log("✅ Recording stopped.");
 
@@ -84,7 +99,8 @@ export async function startRecorder(page: Page) {
     process.exit(0);
   }
 
-  // Termination handling (as you explicitly required)
+  /* ===== Termination handling (unchanged) ===== */
+
   page.on("close", gracefulExit);
   page.context().on("close", gracefulExit);
   page.context().browser()?.on("disconnected", gracefulExit);
@@ -99,7 +115,6 @@ export async function startRecorder(page: Page) {
       const fromUrl = page.url();
       const rawTarget = new URL(payload.href, fromUrl).href;
 
-
       if (!payload.selector || payload.selector === "a") return;
 
       console.log("\n▶ CLICK");
@@ -107,6 +122,7 @@ export async function startRecorder(page: Page) {
       console.log(" To:", rawTarget);
 
       await page.goto(rawTarget, { waitUntil: "domcontentloaded" });
+
       const finalUrl = page.url();
       const content = await extractContent(page);
 
@@ -122,7 +138,7 @@ export async function startRecorder(page: Page) {
     }
   );
 
-  /* ===== Inject Click Listener ===== */
+  /* ===== Inject Click Listener (unchanged) ===== */
 
   await page.addInitScript(() => {
     if ((window as any).__recorderInstalled) return;
@@ -167,4 +183,12 @@ export async function startRecorder(page: Page) {
   console.log("🎥 Recorder started");
   console.log("📌 Initial page recorded:", startUrl);
   console.log("⚠️ Close browser to stop recording");
+}
+
+/* ================= CLI ================= */
+
+if (require.main === module) {
+  (async () => {
+    await startRecorder();
+  })();
 }
