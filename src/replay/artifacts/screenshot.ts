@@ -1,21 +1,22 @@
-import { Page } from "playwright";
-import fs from "fs";
+import { Page } from "@playwright/test";
 import path from "path";
-
-const SCREENSHOT_DIR = path.join(process.cwd(), "replay-artifacts");
+import fs from "fs";
 
 export async function captureFailureScreenshot(
   page: Page,
-  stepIndex: number
+  stepNumber: number
 ): Promise<string> {
-  if (!fs.existsSync(SCREENSHOT_DIR)) {
-    fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
+  const dir = path.join(process.cwd(), "replay-artifacts");
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 
-  const filePath = path.join(
-    SCREENSHOT_DIR,
-    `failure-step-${stepIndex}.png`
-  );
+  // 🔑 CRITICAL: wait for full paint
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(500); // allow fonts/images to render
+
+  const filePath = path.join(dir, `step-${stepNumber}-failure.png`);
 
   await page.screenshot({
     path: filePath,
