@@ -151,25 +151,48 @@ export async function runReplay(): Promise<void> {
 <html>
 <head>
   <title>Replay Report</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .step { border: 1px solid #ccc; margin-bottom: 20px; padding: 10px; }
+    .pass { color: green; font-weight: bold; }
+    .fail { color: red; font-weight: bold; }
+    pre { white-space: pre-wrap; }
+    img { margin-top: 10px; max-width: 100%; border: 1px solid #999; }
+  </style>
 </head>
 <body>
   <h1>Web Replay Report</h1>
+
   ${results
     .map(
       (r, i) => `
-      <div>
-        <h2>Step ${i + 1} — ${r.pass ? "PASS" : "FAIL"}</h2>
-        <pre>${r.content.firstP || ""}</pre>
-        <pre>${r.liveContent.firstP || ""}</pre>
-        ${
-          !r.pass && r.screenshotPath
-            ? `<img src="file://${r.screenshotPath.replace(/\\/g, "/")}" />`
-            : ""
-        }
-      </div>
-    `
+    <div class="step">
+      <h2>
+        Step ${i + 1} —
+        ${r.pass ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>'}
+      </h2>
+
+      <p><strong>Opened URL:</strong> ${r.target_href}</p>
+
+      <p><strong>Recorded firstP:</strong></p>
+      <pre>${r.content.firstP || ""}</pre>
+
+      <p><strong>Live firstP:</strong></p>
+      <pre>${r.liveContent.firstP || ""}</pre>
+
+      ${
+        !r.pass && r.screenshotPath
+          ? `
+        <h3>Failure Screenshot</h3>
+        <img src="file://${r.screenshotPath.replace(/\\/g, "/")}" />
+      `
+          : ""
+      }
+    </div>
+  `
     )
     .join("")}
+
 </body>
 </html>
 `;
