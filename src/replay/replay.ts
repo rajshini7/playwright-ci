@@ -1,4 +1,4 @@
-import { Page } from "playwright";
+import { Page } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 
@@ -91,10 +91,13 @@ async function extractContent(page: Page): Promise<ContentSnapshot> {
   });
 }
 
-
 /* ================= ENTRY ================= */
-
-export async function runReplay(): Promise<void> {
+/**
+ * 🔴 CHANGE #1:
+ * - Accept Page from Playwright Test
+ * - Do NOT create or close browser here
+ */
+export async function runReplay(page: Page): Promise<void> {
   const steps = loadSteps();
 
   if (!steps.length) {
@@ -103,11 +106,10 @@ export async function runReplay(): Promise<void> {
   }
 
   const results: StepResult[] = [];
-  let page: Page | null = null;
 
   try {
     console.log("🔑 Starting headless login for replay...");
-    page = await loginForReplay();
+    await loginForReplay(page); // 🔴 CHANGE #2: pass page in
     console.log("✅ Login successful. Starting replay...");
 
     for (let i = 0; i < steps.length; i++) {
@@ -146,10 +148,6 @@ export async function runReplay(): Promise<void> {
   } catch (err) {
     console.error("❌ Replay crashed:", err);
     throw err; // CI must fail on crash
-  } finally {
-    if (page) {
-      await page.context().browser()?.close();
-    }
   }
 
   /* ================= REPORT ================= */
