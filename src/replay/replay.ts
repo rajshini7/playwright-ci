@@ -49,10 +49,7 @@ function normalize(text?: string) {
 }
 
 /* ================= CONTENT EXTRACTION ================= */
-/**
- * Same logic as recorder.ts
- * Copied (not imported) to keep replay CI-safe
- */
+
 async function extractContent(page: Page): Promise<ContentSnapshot> {
   await page.waitForLoadState("domcontentloaded");
 
@@ -93,9 +90,10 @@ async function extractContent(page: Page): Promise<ContentSnapshot> {
 
 /* ================= ENTRY ================= */
 /**
- * 🔴 CHANGE #1:
- * - Accept Page from Playwright Test
- * - Do NOT create or close browser here
+ * STRICT CONTRACT:
+ * - page is ALWAYS provided by Playwright Test
+ * - no fallback
+ * - no browser creation
  */
 export async function runReplay(page: Page): Promise<void> {
   const steps = loadSteps();
@@ -109,7 +107,7 @@ export async function runReplay(page: Page): Promise<void> {
 
   try {
     console.log("🔑 Starting headless login for replay...");
-    await loginForReplay(page); // 🔴 CHANGE #2: pass page in
+    await loginForReplay(page);
     console.log("✅ Login successful. Starting replay...");
 
     for (let i = 0; i < steps.length; i++) {
@@ -147,7 +145,7 @@ export async function runReplay(page: Page): Promise<void> {
     }
   } catch (err) {
     console.error("❌ Replay crashed:", err);
-    throw err; // CI must fail on crash
+    throw err;
   }
 
   /* ================= REPORT ================= */
@@ -201,8 +199,6 @@ export async function runReplay(page: Page): Promise<void> {
 
   fs.writeFileSync(REPORT_FILE, reportHtml);
   console.log(`\n📄 Replay report generated → ${REPORT_FILE}`);
-
-  /* ================= CI VERDICT ================= */
 
   const failed = results.find(r => !r.pass);
   if (failed) {
