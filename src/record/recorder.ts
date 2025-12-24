@@ -1,8 +1,14 @@
+// src/record/recorder.ts
+
+// dotenv FIRST, local only
+if (!process.env.CI) {
+  require("dotenv").config();
+}
+
 import fs from "fs";
 import path from "path";
 import { Page } from "playwright";
-
-import { loginForRecord } from "../auth/login.record";
+import { loginForRecord } from "../auth/loginrecord";
 
 /* ================= TYPES ================= */
 
@@ -34,13 +40,11 @@ function ensureOutDir() {
 function saveSteps(steps: Step[]) {
   ensureOutDir();
   fs.writeFileSync(OUT_FILE, JSON.stringify(steps, null, 2), "utf-8");
-  console.log(`✅ Steps saved successfully → ${OUT_FILE}`);
+  console.log(`✅ Steps saved → ${OUT_FILE}`);
 }
 
 /* ================= CONTENT EXTRACTION ================= */
-/**
- * ⬇️ UNCHANGED — your original DOM-based extraction logic
- */
+
 export async function extractContent(page: Page): Promise<ContentSnapshot> {
   await page.waitForLoadState("domcontentloaded");
 
@@ -49,20 +53,12 @@ export async function extractContent(page: Page): Promise<ContentSnapshot> {
     const h1 = document.querySelector("h1")?.textContent?.trim() || "";
 
     function extractFirstP(): string {
-      const root = document.querySelector("#mw-content-text");
-      const candidates: HTMLParagraphElement[] = [];
-      if (root) candidates.push(...Array.from(root.querySelectorAll("p")));
-      candidates.push(...Array.from(document.querySelectorAll("p")));
-
+      const candidates = Array.from(document.querySelectorAll("p"));
       for (const p of candidates) {
         const txt = (p.textContent || "").replace(/\s+/g, " ").trim();
         if (txt.length > 40) return txt;
       }
-
-      return document.body.innerText
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 200);
+      return document.body.innerText.replace(/\s+/g, " ").trim().slice(0, 200);
     }
 
     const metaDescription =
@@ -73,16 +69,17 @@ export async function extractContent(page: Page): Promise<ContentSnapshot> {
   });
 }
 
-/* ================= RECORDER ENTRY ================= */
+/* ================= RECORDER ================= */
 
 export async function startRecorder() {
   if (process.env.CI) {
     throw new Error("❌ Recorder must never run in CI");
   }
 
-  console.log("🎥 Starting recorder (headed login)");
+  console.log("🎥 Starting recorder");
 
-  const page = await loginForRecord(); // 🔑 NEW: recorder-specific login
+  // 🔑 LOGIN FIRST
+  const page = await loginForRecord();
 
   const steps: Step[] = [];
   let shuttingDown = false;
@@ -93,16 +90,12 @@ export async function startRecorder() {
 
     console.log("\n🛑 Browser closed. Saving steps...");
     saveSteps(steps);
-    console.log("✅ Recording stopped.");
 
     await page.context().browser()?.close();
     process.exit(0);
   }
 
-  /* ===== Termination handling (unchanged) ===== */
-
   page.on("close", gracefulExit);
-  page.context().on("close", gracefulExit);
   page.context().browser()?.on("disconnected", gracefulExit);
   process.on("SIGINT", gracefulExit);
   process.on("SIGTERM", gracefulExit);
@@ -111,25 +104,23 @@ export async function startRecorder() {
 
   await page.exposeBinding(
     "recordClick",
-    async (_src, payload: { href: string; selector: string }) => {
+    async (_src: unknown, payload: { href: string; selector: string }) => {
       const fromUrl = page.url();
-      const rawTarget = new URL(payload.href, fromUrl).href;
+      const target = new URL(payload.href, fromUrl).href;
 
       if (!payload.selector || payload.selector === "a") return;
 
       console.log("\n▶ CLICK");
       console.log(" From:", fromUrl);
-      console.log(" To:", rawTarget);
+      console.log(" To:", target);
 
-      await page.goto(rawTarget, { waitUntil: "domcontentloaded" });
-
-      const finalUrl = page.url();
+      await page.goto(target, { waitUntil: "domcontentloaded" });
       const content = await extractContent(page);
 
       steps.push({
         selector: payload.selector,
         url: fromUrl,
-        target_href: finalUrl,
+        target_href: page.url(),
         content,
         timestamp: Date.now(),
       });
@@ -138,7 +129,7 @@ export async function startRecorder() {
     }
   );
 
-  /* ===== Inject Click Listener (unchanged) ===== */
+  /* ===== Inject Listener ===== */
 
   await page.addInitScript(() => {
     if ((window as any).__recorderInstalled) return;
@@ -150,12 +141,9 @@ export async function startRecorder() {
         const a = (e.target as HTMLElement)?.closest("a") as HTMLAnchorElement;
         if (!a || !a.href) return;
 
-        let selector = "";
-        if (a.id) selector = `a#${a.id}`;
-        else if (a.getAttribute("href"))
-          selector = `a[href="${a.getAttribute("href")}"]`;
-
-        if (!selector) return;
+        const selector = a.id
+          ? `a#${a.id}`
+          : `a[href="${a.getAttribute("href")}"]`;
 
         e.preventDefault();
         (window as any).recordClick({ href: a.href, selector });
@@ -188,7 +176,8 @@ export async function startRecorder() {
 /* ================= CLI ================= */
 
 if (require.main === module) {
-  (async () => {
-    await startRecorder();
-  })();
+  startRecorder().catch(err => {
+    console.error("❌ Recorder failed:", err);
+    process.exit(1);
+  });
 }
