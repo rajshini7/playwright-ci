@@ -9,7 +9,7 @@
       "firstP": "Congratulations student. You successfully logged in!",
       "metaDescription": ""
     },
-    "timestamp": 1767090556816,
+    "timestamp": 1767091042309,
     "isInitial": true
   },
   {
@@ -22,7 +22,7 @@
       "firstP": "I’m Dmitry Shyshkin, your guide on the path to a thriving QA career. Effortlessly master Selenium WebDriver and test automation to enhance your skills and increase your earnings.",
       "metaDescription": "Learn Selenium WebDriver, locator strategies. Watch presentations and tutorials. Practice Test Automation using free UI with lots of different web elements"
     },
-    "timestamp": 1767090562488
+    "timestamp": 1767091043942
   },
   {
     "selector": "a[href=\"https://practicetestautomation.com/practice/\"]",
@@ -34,7 +34,7 @@
       "firstP": "Simple login page where testers can execute positive and negative login test cases",
       "metaDescription": ""
     },
-    "timestamp": 1767090563636
+    "timestamp": 1767091044908
   },
   {
     "selector": "a[href=\"https://practicetestautomation.com/courses/\"]",
@@ -46,42 +46,18 @@
       "firstP": "Learn Selenium WebDriver with Java and TestNG from scratch. Perfect for manual testers and complete beginners ready to start automating real-world tests.",
       "metaDescription": "Learn test automation from the highest rated Selenium courses by Dmitry Shyshkin"
     },
-    "timestamp": 1767090565302
+    "timestamp": 1767091046191
   },
   {
-    "selector": "a[href=\"https://practicetestautomation.com/blog/\"]",
+    "selector": "a[href=\"https://practicetestautomation.com/\"]",
     "url": "https://practicetestautomation.com/courses/",
-    "target_href": "https://practicetestautomation.com/blog/",
+    "target_href": "https://practicetestautomation.com/",
     "content": {
-      "title": "Blog | Practice Test Automation",
-      "h1": "",
-      "firstP": "Welcome back to our “Selenium WebDriver Career Launcher” series! In this sixth part, we will explore the invaluable benefits of engaging with the Selenium community and expanding your professional network. Active participation in the test automation community can significantly enhance your career prospects, keep you updated with the latest trends, and connect you with industry leaders.",
-      "metaDescription": ""
+      "title": "Practice Test Automation | Learn Selenium WebDriver",
+      "h1": "Hello",
+      "firstP": "I’m Dmitry Shyshkin, your guide on the path to a thriving QA career. Effortlessly master Selenium WebDriver and test automation to enhance your skills and increase your earnings.",
+      "metaDescription": "Learn Selenium WebDriver, locator strategies. Watch presentations and tutorials. Practice Test Automation using free UI with lots of different web elements"
     },
-    "timestamp": 1767090567210
-  },
-  {
-    "selector": "a[href=\"https://practicetestautomation.com/contact/\"]",
-    "url": "https://practicetestautomation.com/blog/",
-    "target_href": "https://practicetestautomation.com/contact/",
-    "content": {
-      "title": "Contact | Practice Test Automation | Selenium WebDriver",
-      "h1": "Contact",
-      "firstP": "If you have questions, suggestions, or business proposals, fill up the form below and I’ll be in touch as soon as I get it!",
-      "metaDescription": "I want to make it easy for you to learn test automation with Selenium WebDriver and other tools."
-    },
-    "timestamp": 1767090569387
-  },
-  {
-    "selector": "a[href=\"https://practicetestautomation.com/practice/\"]",
-    "url": "https://practicetestautomation.com/contact/",
-    "target_href": "https://practicetestautomation.com/practice/",
-    "content": {
-      "title": "Practice | Practice Test Automation",
-      "h1": "Practice",
-      "firstP": " and negative login test cases",
-      "metaDescription": ""
-    },
-    "timestamp": 1767090570911
+    "timestamp": 1767091047516
   }
 ]
