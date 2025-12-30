@@ -1,32 +1,47 @@
 // src/replay/artifacts/screenshot.ts
 import { Page } from "playwright";
-import path from "path";
 import fs from "fs";
+import path from "path";
 
 export async function captureFailureScreenshot(
   page: Page,
   stepNumber: number
 ): Promise<string> {
 
-  // 🔥 SAVE INSIDE ZIP ARTIFACTS FOLDER (SAME AS REPORT)
-  const artifactsDir = path.join(process.cwd(), "artifacts", "replay-artifacts");
-
-  if (!fs.existsSync(artifactsDir)) {
-    fs.mkdirSync(artifactsDir, { recursive: true });
-  }
-
-  await page.waitForLoadState("domcontentloaded");
-  await page.waitForTimeout(500);
-
-  const filePath = path.join(
-    artifactsDir,
-    `step-${stepNumber}-failure.png`
+  // 🔒 ABSOLUTE, EXPLICIT PATH — NO GUESSING
+  const dir = path.resolve(
+    process.cwd(),
+    "src",
+    "replay",
+    "artifacts",
+    "replay-artifacts"
   );
 
+  console.log("📁 Ensuring screenshot directory:", dir);
+
+  // 🔑 FORCE directory creation
+  fs.mkdirSync(dir, { recursive: true });
+
+  const filePath = path.join(dir, `step-${stepNumber}-failure.png`);
+  console.log("📸 Screenshot target:", filePath);
+
+  // Ensure page is stable
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForTimeout(1000);
+
+  // Take screenshot
   await page.screenshot({
     path: filePath,
     fullPage: true,
   });
 
+  // 🔥 HARD ASSERT — NO SILENT FAILURE
+  if (!fs.existsSync(filePath)) {
+    throw new Error(
+      `❌ Screenshot was NOT written to disk at ${filePath}`
+    );
+  }
+
+  console.log("✅ Screenshot successfully saved:", filePath);
   return filePath;
 }
