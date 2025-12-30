@@ -184,7 +184,8 @@ export async function runReplay(): Promise<void> {
         !r.pass && r.screenshotPath
           ? `
         <h3>Failure Screenshot</h3>
-        <img src="file://${r.screenshotPath.replace(/\\/g, "/")}" />
+        <img src="replay-artifacts/${path.basename(r.screenshotPath)}" />
+
       `
           : ""
       }
