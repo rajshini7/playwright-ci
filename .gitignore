@@ -9,3 +9,10 @@ test-results/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+# replay screenshots (runtime artifacts)
+replay-artifacts/
+src/replay/artifacts/replay-artifacts/
+replay-artifacts/
+src/replay/artifacts/replay-artifacts/
+
+
