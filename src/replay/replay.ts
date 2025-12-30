@@ -32,9 +32,22 @@ type StepResult = Step & {
 
 /* ================= PATHS ================= */
 
+// baseline stays unchanged
 const BASELINE_DIR = path.join(process.cwd(), "baseline");
 const STEPS_FILE = path.join(BASELINE_DIR, "steps.json");
-const REPORT_FILE = path.join(process.cwd(), "replay-report.html");
+
+// ✅ FIX: force ALL replay output under src/replay/artifacts
+const ARTIFACTS_DIR = path.join(
+  process.cwd(),
+  "src",
+  "replay",
+  "artifacts"
+);
+
+const REPORT_FILE = path.join(
+  ARTIFACTS_DIR,
+  "replay-report.html"
+);
 
 /* ================= HELPERS ================= */
 
@@ -104,7 +117,7 @@ export async function runReplay(): Promise<void> {
 
   try {
     console.log("🔑 Starting headless login for replay...");
-    page = await loginForReplay(); // 🔒 CONTRACT: MUST return Page
+    page = await loginForReplay();
     console.log("✅ Login successful. Starting replay...");
 
     for (let i = 0; i < steps.length; i++) {
@@ -147,6 +160,11 @@ export async function runReplay(): Promise<void> {
 
   /* ================= REPORT ================= */
 
+  // ✅ ensure src/replay/artifacts exists
+  if (!fs.existsSync(ARTIFACTS_DIR)) {
+    fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+  }
+
   const reportHtml = `
 <html>
 <head>
@@ -184,7 +202,7 @@ export async function runReplay(): Promise<void> {
         !r.pass && r.screenshotPath
           ? `
         <h3>Failure Screenshot</h3>
-        <img src="file://${r.screenshotPath.replace(/\\/g, "/")}" />
+        <img src="replay-artifacts/${path.basename(r.screenshotPath)}" />
       `
           : ""
       }
