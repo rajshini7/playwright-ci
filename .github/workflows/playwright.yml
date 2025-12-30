@@ -43,7 +43,6 @@ jobs:
           echo "PASSWORD set: $([[ -n \"$PASSWORD\" ]] && echo yes || echo no)"
           npx playwright test tests/replay.spec.ts
 
-      # ✅ ONE artifact, ONE file, ALWAYS
       - name: Upload replay report
         if: always()
         uses: actions/upload-artifact@v4
