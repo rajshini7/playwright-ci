@@ -1,16 +1,6 @@
-// src/record/recorder.ts
-
-// 🔑 dotenv MUST be first — BEFORE imports
-import path from "path";
-import dotenv from "dotenv";
-
-dotenv.config({
-  path: path.resolve(process.cwd(), ".env"),
-});
-
 import fs from "fs";
+import path from "path";
 import { Page } from "playwright";
-import { loginForRecord } from "../auth/loginrecord";
 
 /* ================= TYPES ================= */
 
@@ -30,26 +20,151 @@ type Step = {
   isInitial?: boolean;
 };
 
-/* ================= RECORDER ================= */
+/* ================= PATHS ================= */
 
-export async function startRecorder(page?: Page) {
-  console.log("🎥 Starting recorder");
+const OUT_DIR = path.join(process.cwd(), "baseline");
+const OUT_FILE = path.join(OUT_DIR, "steps.json");
 
-  try {
-    const activePage = page ?? (await loginForRecord());
-
-    console.log("🖱️ Recorder ready — user may now click");
-
-    // 👇 your existing recording logic continues here
-    // (unchanged — not touching it)
-
-  } catch (err) {
-    console.error("❌ Recorder failed:", err);
-    process.exit(1);
-  }
+function ensureOutDir() {
+  if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 }
 
-// Standalone run
-if (require.main === module) {
-  startRecorder();
+function saveSteps(steps: Step[]) {
+  ensureOutDir();
+  fs.writeFileSync(OUT_FILE, JSON.stringify(steps, null, 2), "utf-8");
+  console.log(`✅ Steps saved successfully → ${OUT_FILE}`);
+}
+
+/* ================= CONTENT EXTRACTION ================= */
+
+export async function extractContent(page: Page): Promise<ContentSnapshot> {
+  await page.waitForLoadState("domcontentloaded");
+
+  return page.evaluate(() => {
+    const title = document.title || "";
+    const h1 = document.querySelector("h1")?.textContent?.trim() || "";
+
+    function extractFirstP(): string {
+      const root = document.querySelector("#mw-content-text");
+      const candidates: HTMLParagraphElement[] = [];
+      if (root) candidates.push(...Array.from(root.querySelectorAll("p")));
+      candidates.push(...Array.from(document.querySelectorAll("p")));
+
+      for (const p of candidates) {
+        const txt = (p.textContent || "").replace(/\s+/g, " ").trim();
+        if (txt.length > 40) return txt;
+      }
+
+      return document.body.innerText.replace(/\s+/g, " ").trim().slice(0, 200);
+    }
+
+    const metaDescription =
+      (document.querySelector('meta[name="description"]') as HTMLMetaElement)
+        ?.content || "";
+
+    return { title, h1, firstP: extractFirstP(), metaDescription };
+  });
+}
+
+/* ================= RECORDER ================= */
+
+export async function startRecorder(page: Page) {
+  const steps: Step[] = [];
+  let shuttingDown = false;
+
+  async function gracefulExit() {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.log("\n🛑 Browser closed. Saving steps to steps.json...");
+    saveSteps(steps);
+    console.log("✅ Recording stopped.");
+
+    await page.context().browser()?.close();
+    process.exit(0);
+  }
+
+  // Termination handling (as you explicitly required)
+  page.on("close", gracefulExit);
+  page.context().on("close", gracefulExit);
+  page.context().browser()?.on("disconnected", gracefulExit);
+  process.on("SIGINT", gracefulExit);
+  process.on("SIGTERM", gracefulExit);
+
+  /* ===== Click Recording ===== */
+
+  await page.exposeBinding(
+    "recordClick",
+    async (_src, payload: { href: string; selector: string }) => {
+      const fromUrl = page.url();
+      const rawTarget = new URL(payload.href, fromUrl).href;
+
+
+      if (!payload.selector || payload.selector === "a") return;
+
+      console.log("\n▶ CLICK");
+      console.log(" From:", fromUrl);
+      console.log(" To:", rawTarget);
+
+      await page.goto(rawTarget, { waitUntil: "domcontentloaded" });
+      const finalUrl = page.url();
+      const content = await extractContent(page);
+
+      steps.push({
+        selector: payload.selector,
+        url: fromUrl,
+        target_href: finalUrl,
+        content,
+        timestamp: Date.now(),
+      });
+
+      saveSteps(steps);
+    }
+  );
+
+  /* ===== Inject Click Listener ===== */
+
+  await page.addInitScript(() => {
+    if ((window as any).__recorderInstalled) return;
+    (window as any).__recorderInstalled = true;
+
+    document.addEventListener(
+      "click",
+      (e) => {
+        const a = (e.target as HTMLElement)?.closest("a") as HTMLAnchorElement;
+        if (!a || !a.href) return;
+
+        let selector = "";
+        if (a.id) selector = `a#${a.id}`;
+        else if (a.getAttribute("href"))
+          selector = `a[href="${a.getAttribute("href")}"]`;
+
+        if (!selector) return;
+
+        e.preventDefault();
+        (window as any).recordClick({ href: a.href, selector });
+      },
+      true
+    );
+  });
+
+  /* ===== Initial Snapshot ===== */
+
+  const startUrl = page.url();
+  const initialContent = await extractContent(page);
+
+  steps.push({
+    selector: null,
+    url: startUrl,
+    target_href: startUrl,
+    content: initialContent,
+    timestamp: Date.now(),
+    isInitial: true,
+  });
+
+  saveSteps(steps);
+
+  console.log("🎥 Recorder started");
+  console.log("📌 Initial page recorded:", startUrl);
+  console.log("⚠️ Close browser to stop recording");
 }
