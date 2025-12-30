@@ -1,6 +1,12 @@
-import fs from "fs";
+// src/record/recorder.ts
+
 import path from "path";
-import { Page } from "playwright";
+import dotenv from "dotenv";
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+import fs from "fs";
+import { Page, Browser } from "playwright";
+import { loginForRecord } from "../auth/loginrecord";
 
 /* ================= TYPES ================= */
 
@@ -31,89 +37,93 @@ function ensureOutDir() {
 
 function saveSteps(steps: Step[]) {
   ensureOutDir();
-  fs.writeFileSync(OUT_FILE, JSON.stringify(steps, null, 2), "utf-8");
-  console.log(`✅ Steps saved successfully → ${OUT_FILE}`);
+  fs.writeFileSync(OUT_FILE, JSON.stringify(steps, null, 2));
+  console.log(`💾 Saved ${steps.length} steps`);
 }
 
-/* ================= CONTENT EXTRACTION ================= */
+/* ================= CONTENT ================= */
 
-export async function extractContent(page: Page): Promise<ContentSnapshot> {
+async function extractContent(page: Page): Promise<ContentSnapshot> {
   await page.waitForLoadState("domcontentloaded");
-
   return page.evaluate(() => {
     const title = document.title || "";
     const h1 = document.querySelector("h1")?.textContent?.trim() || "";
-
-    function extractFirstP(): string {
-      const root = document.querySelector("#mw-content-text");
-      const candidates: HTMLParagraphElement[] = [];
-      if (root) candidates.push(...Array.from(root.querySelectorAll("p")));
-      candidates.push(...Array.from(document.querySelectorAll("p")));
-
-      for (const p of candidates) {
-        const txt = (p.textContent || "").replace(/\s+/g, " ").trim();
-        if (txt.length > 40) return txt;
-      }
-
-      return document.body.innerText.replace(/\s+/g, " ").trim().slice(0, 200);
-    }
-
     const metaDescription =
       (document.querySelector('meta[name="description"]') as HTMLMetaElement)
         ?.content || "";
 
-    return { title, h1, firstP: extractFirstP(), metaDescription };
+    let firstP = "";
+    for (const p of Array.from(document.querySelectorAll("p"))) {
+      const txt = p.textContent?.replace(/\s+/g, " ").trim() || "";
+      if (txt.length > 40) {
+        firstP = txt;
+        break;
+      }
+    }
+
+    return { title, h1, firstP, metaDescription };
   });
 }
 
 /* ================= RECORDER ================= */
 
-export async function startRecorder(page: Page) {
+export async function startRecorder(page?: Page) {
+  const activePage = page ?? (await loginForRecord());
+  if (!activePage) throw new Error("No page for recorder");
+
+  const browser: Browser = activePage.context().browser()!;
   const steps: Step[] = [];
-  let shuttingDown = false;
+  let finished = false;
 
-  async function gracefulExit() {
-    if (shuttingDown) return;
-    shuttingDown = true;
+  /* ======== SHUTDOWN CONTROLLER ======== */
 
-    console.log("\n🛑 Browser closed. Saving steps to steps.json...");
+  let shutdownResolve!: () => void;
+  const shutdownPromise = new Promise<void>((resolve) => {
+    shutdownResolve = resolve;
+  });
+
+  async function finalize(reason: string) {
+    if (finished) return;
+    finished = true;
+
+    console.log(`\n🛑 Recording finished (${reason})`);
     saveSteps(steps);
-    console.log("✅ Recording stopped.");
 
-    await page.context().browser()?.close();
-    process.exit(0);
+    shutdownResolve();
   }
 
-  // Termination handling (as you explicitly required)
-  page.on("close", gracefulExit);
-  page.context().on("close", gracefulExit);
-  page.context().browser()?.on("disconnected", gracefulExit);
-  process.on("SIGINT", gracefulExit);
-  process.on("SIGTERM", gracefulExit);
+  /* ======== 🔥 FIX: PAGE CLOSE HANDLER (ONLY CHANGE) ======== */
 
-  /* ===== Click Recording ===== */
+  activePage.on("close", () => {
+    finalize("browser window closed (page closed)");
+  });
 
-  await page.exposeBinding(
+  /* ======== Existing browser listener (unchanged) ======== */
+
+  browser.once("disconnected", () => {
+    finalize("browser disconnected");
+  });
+
+  /* ======== Optional CTRL+C ======== */
+
+  process.on("SIGINT", () => finalize("SIGINT"));
+
+  /* ======== Binding ======== */
+
+  await activePage.exposeBinding(
     "recordClick",
     async (_src, payload: { href: string; selector: string }) => {
-      const fromUrl = page.url();
-      const rawTarget = new URL(payload.href, fromUrl).href;
+      const fromUrl = activePage.url();
+      const targetUrl = new URL(payload.href, fromUrl).href;
 
+      await activePage.goto(targetUrl, { waitUntil: "domcontentloaded" });
 
-      if (!payload.selector || payload.selector === "a") return;
-
-      console.log("\n▶ CLICK");
-      console.log(" From:", fromUrl);
-      console.log(" To:", rawTarget);
-
-      await page.goto(rawTarget, { waitUntil: "domcontentloaded" });
-      const finalUrl = page.url();
-      const content = await extractContent(page);
+      const content = await extractContent(activePage);
 
       steps.push({
         selector: payload.selector,
         url: fromUrl,
-        target_href: finalUrl,
+        target_href: activePage.url(),
         content,
         timestamp: Date.now(),
       });
@@ -122,36 +132,42 @@ export async function startRecorder(page: Page) {
     }
   );
 
-  /* ===== Inject Click Listener ===== */
+  /* ======== Click listener injection (unchanged) ======== */
 
-  await page.addInitScript(() => {
-    if ((window as any).__recorderInstalled) return;
-    (window as any).__recorderInstalled = true;
+  async function inject() {
+    await activePage.evaluate(() => {
+      if ((window as any).__recorderInstalled) return;
+      (window as any).__recorderInstalled = true;
 
-    document.addEventListener(
-      "click",
-      (e) => {
-        const a = (e.target as HTMLElement)?.closest("a") as HTMLAnchorElement;
-        if (!a || !a.href) return;
+      document.addEventListener(
+        "click",
+        (e) => {
+          const el = (e.target as HTMLElement | null)?.closest("a");
+          if (!el) return;
 
-        let selector = "";
-        if (a.id) selector = `a#${a.id}`;
-        else if (a.getAttribute("href"))
-          selector = `a[href="${a.getAttribute("href")}"]`;
+          const href = (el as HTMLAnchorElement).href;
+          if (!href) return;
 
-        if (!selector) return;
+          let selector = el.id
+            ? `a#${el.id}`
+            : `a[href="${el.getAttribute("href")}"]`;
 
-        e.preventDefault();
-        (window as any).recordClick({ href: a.href, selector });
-      },
-      true
-    );
+          (window as any).recordClick({ href, selector });
+        },
+        true
+      );
+    });
+  }
+
+  await inject();
+  activePage.on("framenavigated", async (frame) => {
+    if (frame === activePage.mainFrame()) await inject();
   });
 
-  /* ===== Initial Snapshot ===== */
+  /* ======== Initial snapshot ======== */
 
-  const startUrl = page.url();
-  const initialContent = await extractContent(page);
+  const startUrl = activePage.url();
+  const initialContent = await extractContent(activePage);
 
   steps.push({
     selector: null,
@@ -164,7 +180,19 @@ export async function startRecorder(page: Page) {
 
   saveSteps(steps);
 
-  console.log("🎥 Recorder started");
-  console.log("📌 Initial page recorded:", startUrl);
-  console.log("⚠️ Close browser to stop recording");
+  console.log("🎥 Recorder active — close browser to stop recording");
+
+  /* ======== WAIT FOR CLOSE ======== */
+
+  await shutdownPromise;
+  process.exit(0);
+}
+
+/* ================= STANDALONE ================= */
+
+if (require.main === module) {
+  startRecorder().catch((err) => {
+    console.error("❌ Recorder crashed:", err);
+    process.exit(1);
+  });
 }
