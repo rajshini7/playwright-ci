@@ -32,22 +32,12 @@ type StepResult = Step & {
 
 /* ================= PATHS ================= */
 
-// baseline stays unchanged
 const BASELINE_DIR = path.join(process.cwd(), "baseline");
 const STEPS_FILE = path.join(BASELINE_DIR, "steps.json");
 
-// ✅ FIX: force ALL replay output under src/replay/artifacts
-const ARTIFACTS_DIR = path.join(
-  process.cwd(),
-  "src",
-  "replay",
-  "artifacts"
-);
-
-const REPORT_FILE = path.join(
-  ARTIFACTS_DIR,
-  "replay-report.html"
-);
+// 🔧 FIX: single artifacts root for report + screenshots
+const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts");
+const REPORT_FILE = path.join(ARTIFACTS_DIR, "replay-report.html");
 
 /* ================= HELPERS ================= */
 
@@ -160,7 +150,7 @@ export async function runReplay(): Promise<void> {
 
   /* ================= REPORT ================= */
 
-  // ✅ ensure src/replay/artifacts exists
+  // 🔧 FIX: ensure artifacts dir exists
   if (!fs.existsSync(ARTIFACTS_DIR)) {
     fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
   }
@@ -202,6 +192,7 @@ export async function runReplay(): Promise<void> {
         !r.pass && r.screenshotPath
           ? `
         <h3>Failure Screenshot</h3>
+        <!-- 🔧 FIX: screenshot path relative to artifacts/ -->
         <img src="replay-artifacts/${path.basename(r.screenshotPath)}" />
       `
           : ""
