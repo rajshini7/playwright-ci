@@ -49,6 +49,13 @@ function normalize(text?: string) {
   return (text || "").replace(/\s+/g, " ").trim();
 }
 
+/* 🔧 NEW: Embed screenshot as Base64 (REQUIRED CHANGE ONLY) */
+function embedImageBase64(filePath: string): string {
+  const buffer = fs.readFileSync(filePath);
+  const base64 = buffer.toString("base64");
+  return `data:image/png;base64,${base64}`;
+}
+
 /* ================= CONTENT EXTRACTION ================= */
 
 async function extractContent(page: Page): Promise<ContentSnapshot> {
@@ -104,7 +111,7 @@ export async function runReplay(): Promise<void> {
 
   try {
     console.log("🔑 Starting headless login for replay...");
-    page = await loginForReplay(); // 🔒 CONTRACT: MUST return Page
+    page = await loginForReplay();
     console.log("✅ Login successful. Starting replay...");
 
     for (let i = 0; i < steps.length; i++) {
@@ -184,8 +191,7 @@ export async function runReplay(): Promise<void> {
         !r.pass && r.screenshotPath
           ? `
         <h3>Failure Screenshot</h3>
-        <img src="replay-artifacts/${path.basename(r.screenshotPath)}" />
-
+        <img src="${embedImageBase64(r.screenshotPath)}" />
       `
           : ""
       }
