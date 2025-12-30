@@ -43,12 +43,15 @@ jobs:
           echo "PASSWORD set: $([[ -n \"$PASSWORD\" ]] && echo yes || echo no)"
           npx playwright test tests/replay.spec.ts
 
-      - name: Upload replay report
+      # ✅ Upload report + screenshots together
+      - name: Upload replay artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: replay-report
-          path: replay-report.html
+          name: replay-artifacts
+          path: |
+            replay-report.html
+            src/replay/artifacts/replay-artifacts
           retention-days: 30
 
       - uses: actions/upload-artifact@v4
