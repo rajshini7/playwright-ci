@@ -1,4 +1,5 @@
-import { Page } from "@playwright/test";
+// src/replay/artifacts/screenshot.ts
+import { Page } from "playwright";   // ✅ FIXED
 import path from "path";
 import fs from "fs";
 
@@ -12,9 +13,9 @@ export async function captureFailureScreenshot(
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  // 🔑 CRITICAL: wait for full paint
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(500); // allow fonts/images to render
+  // ✅ Stable and safe
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForTimeout(500);
 
   const filePath = path.join(dir, `step-${stepNumber}-failure.png`);
 
