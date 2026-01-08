@@ -1,0 +1,40 @@
+# ===============================
+# SYSTEM REQUIREMENTS
+# ===============================
+
+Node.js >= 20.x
+npm >= 9.x
+Git
+
+# ===============================
+# RUNTIME ENVIRONMENT
+# ===============================
+
+Chromium Browser (installed via Playwright)
+Linux/Windows/macOS supported
+
+# ===============================
+# NODE DEPENDENCIES (npm)
+# ===============================
+
+playwright@^1.41.2
+@playwright/test@^1.41.2
+typescript@^5.3.3
+ts-node@^10.9.2
+dotenv@^16.4.5
+@types/node@^20.11.30
+
+# ===============================
+# REQUIRED ENV VARIABLES
+# ===============================
+
+BASE_URL
+USERNAME
+PASSWORD
+
+# ===============================
+# INSTALL COMMANDS
+# ===============================
+
+npm ci
+npx playwright install --with-deps chromium
