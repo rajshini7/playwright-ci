@@ -1,6 +1,6 @@
 Playwright Recorder & Replay Automation Framework
 
-📌 OVERVIEW
+ OVERVIEW
 
 This project is a Playwright-based UI journey recorder and replay framework that allows you to:
 🔹Record real user navigation flows from a browser session
@@ -12,7 +12,7 @@ This project is a Playwright-based UI journey recorder and replay framework that
 🔹Run identically in local and CI environments
 🔹Unlike traditional Playwright tests, this framework focuses on record once → replay forever with validation.
 
-❓ WHY THIS PROJECT
+ WHY THIS PROJECT
 
 Modern UI automation often fails due to:
 
