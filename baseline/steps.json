@@ -9,7 +9,7 @@
       "firstP": "Congratulations student. You successfully logged in!",
       "metaDescription": ""
     },
-    "timestamp": 1767851733140,
+    "timestamp": 1767941942018,
     "isInitial": true
   },
   {
@@ -22,7 +22,7 @@
       "firstP": "I’m Dmitry Shyshkin, your guide on the path to a thriving QA career. Effortlessly master Selenium WebDriver and test automation to enhance your skills and increase your earnings.",
       "metaDescription": "Learn Selenium WebDriver, locator strategies. Watch presentations and tutorials. Practice Test Automation using free UI with lots of different web elements"
     },
-    "timestamp": 1767851738525
+    "timestamp": 1767941944731
   },
   {
     "selector": "a[href=\"https://practicetestautomation.com/practice/\"]",
@@ -34,7 +34,7 @@
       "firstP": "Simple login page where testers can execute positive and negative login test cases",
       "metaDescription": ""
     },
-    "timestamp": 1767851739475
+    "timestamp": 1767941945870
   },
   {
     "selector": "a[href=\"https://practicetestautomation.com/courses/\"]",
@@ -46,7 +46,7 @@
       "firstP": "Learn Selenium WebDriver with Java and TestNG from scratch. Perfect for manual testers and complete beginners ready to start automating real-world tests.",
       "metaDescription": "Learn test automation from the highest rated Selenium courses by Dmitry Shyshkin"
     },
-    "timestamp": 1767851740911
+    "timestamp": 1767941947220
   },
   {
     "selector": "a[href=\"https://practicetestautomation.com/blog/\"]",
@@ -58,6 +58,6 @@
       "firstP": "Welcome back to our “Selenium WebDriver Career Launcher” series! In this sixth part, we will explore the invaluable benefits of engaging with the Selenium community and expanding your professional network. Active participation in the test automation community can significantly enhance your career prospects, keep you updated with the latest trends, and connect you with industry leaders.",
       "metaDescription": ""
     },
-    "timestamp": 1767851742176
+    "timestamp": 1767941948456
   }
 ]
